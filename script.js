@@ -135,86 +135,148 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 });
 
 // ===================================
-// FORM VALIDATION (for all forms)
+// EMAILJS CONFIGURATION
 // ===================================
-const forms = document.querySelectorAll('form');
-forms.forEach(form => {
-    form.addEventListener('submit', function(e) {
+const EMAILJS_CONFIG = {
+    publicKey: 'V9rIk-StUc1fTIxC8',
+    serviceId: 'service_l98zmwo',
+    admissionTemplateId: 'template_rzmy8ki',
+    contactTemplateId: 'template_l7ss6ml'
+};
+
+// Initialize EmailJS
+(function() {
+    emailjs.init(EMAILJS_CONFIG.publicKey);
+})();
+
+// ===================================
+// FORM SUBMISSION HANDLERS
+// ===================================
+
+// Helper function to show notification
+function showNotification(form, message, type = 'success') {
+    // Remove existing notifications
+    const existingNotif = form.querySelector('.form-notification');
+    if (existingNotif) existingNotif.remove();
+    
+    const notification = document.createElement('div');
+    notification.className = `form-notification form-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        background: ${type === 'success' ? 'var(--gold-100)' : 'var(--red-100)'};
+        color: ${type === 'success' ? 'var(--primary-900)' : 'var(--red-700)'};
+        padding: var(--space-md);
+        border-radius: var(--radius-md);
+        margin-top: var(--space-md);
+        text-align: center;
+        font-weight: 600;
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    form.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+
+// Helper function to set button loading state
+function setButtonLoading(button, isLoading) {
+    if (isLoading) {
+        button.dataset.originalText = button.textContent;
+        button.textContent = 'Sending...';
+        button.disabled = true;
+        button.style.opacity = '0.7';
+        button.style.cursor = 'not-allowed';
+    } else {
+        button.textContent = button.dataset.originalText;
+        button.disabled = false;
+        button.style.opacity = '1';
+        button.style.cursor = 'pointer';
+    }
+}
+
+// Admission Form Handler
+const admissionForm = document.getElementById('admissionForm');
+if (admissionForm) {
+    admissionForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        let isValid = true;
-        const inputs = form.querySelectorAll('input[required], textarea[required], select[required]');
+        const submitBtn = this.querySelector('button[type="submit"]');
+        setButtonLoading(submitBtn, true);
         
-        inputs.forEach(input => {
-            if (!input.value.trim()) {
-                isValid = false;
-                input.style.borderColor = 'var(--red-500)';
-                
-                // Remove error styling on input
-                input.addEventListener('input', function() {
-                    this.style.borderColor = '';
-                }, { once: true });
-            }
+        // Prepare template parameters
+        const templateParams = {
+            from_name: `${document.getElementById('firstName').value} ${document.getElementById('lastName').value}`,
+            user_email: document.getElementById('email').value,
+            phone: document.getElementById('phone').value,
+            address: document.getElementById('address').value,
+            qualification: document.getElementById('qualification').value,
+            percentage: document.getElementById('percentage').value,
+            institution: document.getElementById('institution').value,
+            course: document.getElementById('course').options[document.getElementById('course').selectedIndex].text,
+            batch: document.getElementById('batch').options[document.getElementById('batch').selectedIndex].text,
+            message: document.getElementById('message').value || 'No additional information provided'
+        };
+        
+        // Send email via EmailJS
+        emailjs.send(
+            EMAILJS_CONFIG.serviceId,
+            EMAILJS_CONFIG.admissionTemplateId,
+            templateParams
+        )
+        .then(function(response) {
+            console.log('SUCCESS!', response.status, response.text);
+            showNotification(admissionForm, 'Application submitted successfully! We will contact you soon.', 'success');
+            admissionForm.reset();
+            setButtonLoading(submitBtn, false);
+        })
+        .catch(function(error) {
+            console.error('FAILED...', error);
+            showNotification(admissionForm, 'Failed to send application. Please try again or contact us directly at amicuslaw.edu@gmail.com', 'error');
+            setButtonLoading(submitBtn, false);
         });
-        
-        // Email validation
-        const emailInputs = form.querySelectorAll('input[type="email"]');
-        emailInputs.forEach(email => {
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (email.value && !emailPattern.test(email.value)) {
-                isValid = false;
-                email.style.borderColor = 'var(--red-500)';
-            }
-        });
-        
-        if (isValid) {
-            // Show success message
-            const successMessage = document.createElement('div');
-            successMessage.className = 'form-success';
-            successMessage.textContent = 'Form submitted successfully! We will contact you soon.';
-            successMessage.style.cssText = `
-                background: var(--gold-100);
-                color: var(--primary-900);
-                padding: var(--space-md);
-                border-radius: var(--radius-md);
-                margin-top: var(--space-md);
-                text-align: center;
-                font-weight: 600;
-            `;
-            
-            form.appendChild(successMessage);
-            form.reset();
-            
-            setTimeout(() => {
-                successMessage.remove();
-            }, 5000);
-        } else {
-            // Show error message
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'form-error';
-            errorMessage.textContent = 'Please fill in all required fields correctly.';
-            errorMessage.style.cssText = `
-                background: var(--red-100);
-                color: var(--red-700);
-                padding: var(--space-md);
-                border-radius: var(--radius-md);
-                margin-top: var(--space-md);
-                text-align: center;
-                font-weight: 600;
-            `;
-            
-            // Remove existing error messages
-            const existingError = form.querySelector('.form-error');
-            if (existingError) existingError.remove();
-            
-            form.appendChild(errorMessage);
-            
-            setTimeout(() => {
-                errorMessage.remove();
-            }, 5000);
-        }
     });
-});
+}
+
+// Contact Form Handler
+const contactForm = document.getElementById('contactForm');
+if (contactForm) {
+    contactForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        setButtonLoading(submitBtn, true);
+        
+        // Prepare template parameters
+        const templateParams = {
+            from_name: document.getElementById('name').value,
+            user_email: document.getElementById('contactEmail').value,
+            phone: document.getElementById('contactPhone').value,
+            subject: document.getElementById('subject').options[document.getElementById('subject').selectedIndex].text,
+            message: document.getElementById('contactMessage').value
+        };
+        
+        // Send email via EmailJS
+        emailjs.send(
+            EMAILJS_CONFIG.serviceId,
+            EMAILJS_CONFIG.contactTemplateId,
+            templateParams
+        )
+        .then(function(response) {
+            console.log('SUCCESS!', response.status, response.text);
+            showNotification(contactForm, 'Message sent successfully! We will respond within 24 hours.', 'success');
+            contactForm.reset();
+            setButtonLoading(submitBtn, false);
+        })
+        .catch(function(error) {
+            console.error('FAILED...', error);
+            showNotification(contactForm, 'Failed to send message. Please try again or call us at +977-9867825654', 'error');
+            setButtonLoading(submitBtn, false);
+        });
+    });
+}
 
 // ===================================
 // LAZY LOADING FOR IMAGES
